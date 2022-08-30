@@ -1,0 +1,1251 @@
+unit Unit1;
+
+{$mode objfpc}{$H+}
+
+interface
+
+uses
+  ComObj,windows, Classes, SysUtils, Forms, Controls, Graphics, Dialogs, Grids, Menus, ComCtrls,
+  StdCtrls, ExtCtrls, math,fileutil,LAZUTF8 , Types, Tables;
+
+type
+  dat=record
+    name:string[100]; //имя шаблона
+    sabl:string[255]; //путь до шаблона
+    katalog_info:string[255]; //путь до текстовика с инфой о шаблоне
+    katalog_mat:string[255]; //путь до папки с материалами по данному шаблону
+    nomer:integer; //номер шаблона, для быстрого доступа
+    kolvo:integer; //количество ключевых слов;
+    kolvoPer:integer;
+  end;
+
+
+  { TForm1 }
+
+  TForm1 = class(TForm)
+    FindBut: TButton;
+    StartBut: TButton;
+    Button3: TButton;
+    Button4: TButton;
+    MoreSizeTablBut: TButton;
+    Label2: TLabel;
+    LowSizeTableBut: TButton;
+    CheckBox1: TCheckBox;
+    CheckBox2: TCheckBox;
+    DelSledBox: TCheckBox;
+    Label_ViborSabl: TLabel;
+    MainMenu1: TMainMenu;
+    MenuItem1: TMenuItem;
+    OpenDialog1: TOpenDialog;
+    ProgressBar1: TProgressBar;
+    ProgressBar2: TProgressBar;
+    RadioGroup1: TRadioGroup;
+    SelectDirectoryDialog1: TSelectDirectoryDialog;
+    SelectDirectoryDialog2: TSelectDirectoryDialog;
+    Splitter2: TSplitter;
+    ZavodSbros: TMenuItem;
+    NewSablon: TMenuItem;
+    MenuItem3: TMenuItem;
+    PytMat: TMenuItem;
+    ViborSabl: TMenuItem;
+    SaveSablAs0: TMenuItem;
+    PytSabl: TMenuItem;
+    Otladka: TMenuItem;
+    DelSabl: TMenuItem;
+    tabl: TStringGrid;
+    procedure FindButClick(Sender: TObject);
+    procedure StartButClick(Sender: TObject);
+    procedure Button3Click(Sender: TObject);
+    procedure Button4Click(Sender: TObject);
+    procedure FormCreate(Sender: TObject);
+    procedure LowSizeTableButClick(Sender: TObject);
+    procedure MoreSizeTablButClick(Sender: TObject);
+    procedure ProgressBar2ContextPopup(Sender: TObject; MousePos: TPoint;
+      var Handled: Boolean);
+    procedure PytMatClick(Sender: TObject);
+    procedure ViborSablClick(Sender: TObject);
+    procedure NewSablonClick(Sender: TObject);
+    procedure ZavodSbrosClick(Sender: TObject);
+    procedure UpDown1Click(Sender: TObject; Button: TUDBtnType);
+  private
+
+  public
+
+  end;
+
+  function ObrNomer(u,m:string):string;
+
+var
+  Form1: TForm1;
+  t:textfile;      //переменная под обработку txt
+  f:file of dat;   //переменная под обработку базы
+ // d:dat;           //буфер для базы
+  x:integer;       //номер активного шаблона
+  o:boolean;       //буль режима отладки
+  nomReport:integer;
+  TableEx:Table;
+  TableInfoEx:TablesInfo;
+  //d[0].nomer в нулевом элементе хранится информация об активном шаблоне
+implementation
+
+{$R *.lfm}
+
+{ TForm1 }
+function min(h,w:integer):integer;
+begin
+  if h<=w then
+    min:=h
+  else
+    min:=w;
+end;
+
+function razmerPhoto(h,w:integer):real;
+begin
+  razmerPhoto:=(650/min(h,w))/3.5
+end;
+
+function ObrNomer(u,m:string):string;
+var i,j:integer;
+begin
+  if pos('#',u)<>0 then
+  begin
+  i:=1;
+  while (((u[i]<>'!') and (u[i+1]<>'#')) and (length(u)>i)) do
+  begin
+    i:=i+1;
+  end;
+  j:=2;
+  while ((u[i+j]<>'#') and (length(u)>=(i+j))) do
+    j:=j+1;
+  j:=j+1;
+  delete(u,i,j);
+  delete(u,i,length(u)-i);
+  //showmessage(m);
+  insert(m,u,i);
+  ObrNomer:=u;
+  end
+  else
+    ObrNomer:='';
+end;
+
+function paste_picture(var s,a:string; x:string; var g:integer; var w:olevariant; var v:integer; name:string):boolean;
+var searchResult : TSearchRec;
+  buf:real;
+  h:integer;
+  sh:olevariant;
+  q:string;
+  c:real;
+begin
+  //x='\*.jpg'
+  if (FindFirst(utf8toSys(s+a+x), faanyfile, searchResult) = 0) then
+  begin
+    paste_picture:=true;
+  repeat
+    g:=w.selection.start;
+    q:=(s+a+'\'+searchResult.name);
+    sh:=w.ActiveDocument.Shapes.AddPicture(widestring(q), false,true,w.Selection.Range);
+    sh.WrapFormat.&type:=7;
+    if ((pos('doc',name)<>0) or (pos('pover',name)<>0) or (pos('Pril',name)<>0)) then
+      begin
+        buf:=sh.Height*0.75;
+        sh.Height:=round(buf);
+        buf:=sh.Width*0.75;
+        sh.Width:=round(buf);
+      end
+    else
+    begin
+     // w.activedocument.range(g-1,g-1).text:=#13+#13+#13+#13+#13+#13+#13;
+      c:=razmerphoto(sh.Height,sh.Width);
+      buf:=sh.Height*c;
+      sh.Height:=round(buf);
+      buf:=sh.Width*c;
+      sh.Width:=round(buf);
+    end;
+    v:=v+1;
+    g:=w.selection.start;
+    until (FindNext(searchResult)<>0);
+  end
+  else
+    paste_picture:=false;
+  findclose(searchResult);
+end;
+
+procedure TForm1.UpDown1Click(Sender: TObject; Button: TUDBtnType);
+begin
+
+end;
+procedure VstavPic(wo:olevariant; da:dat);
+begin
+end;
+procedure TForm1.FormCreate(Sender: TObject);
+var d:dat;
+  i,j,k,max:integer;
+  s,m:string;
+begin
+  assignfile(f, UTF8toSys('base.dat'));
+  randomize;
+  TableEx:=Table.create;
+  TableInfoEx:=Tablesinfo.create;
+  NomReport:=(random(10000)+1)*10;
+  if not(FileExists(UTF8toSys('base.dat'))) then
+    rewrite(f)
+  else
+  reset(f);
+  //rewrite(f);
+  //read(f,d);
+  if (filesize(f)=0) then
+    begin
+    //UpDown1.enabled:=false;
+    FindBut.enabled:=false;
+    {
+    RadioButton2.enabled:=false;
+    RadioButton3.enabled:=false;
+    RadioButton4.enabled:=false;
+    RadioButton5.enabled:=false;}
+    ViborSabl.enabled:=false;
+    PytMat.enabled:=false;
+    PytSabl.enabled:=false;
+    SaveSablAs0.enabled:=false;
+    DelSabl.enabled:=false;
+    ZavodSbros.enabled:=false;
+    Label_ViborSabl.visible:=false;
+    end
+  else
+  begin
+  x:=1;
+  max:=-10000;
+  for i:=1 to (filesize(f)-1) do
+     begin
+       seek(f,i);
+       read(f,d);
+       if (max<d.kolvo) then
+         max:=d.kolvo;
+     end;
+  tabl.colcount:=5+max;
+  tabl.rowcount:=filesize(f);
+  //showmessage(inttostr(max));
+   for i:=1 to (filesize(f)-1) do
+     begin
+       seek(f,i);
+       read(f,d);
+       assignfile(t, utf8toSys((d.name+'.txt')));
+       reset(t);
+       tabl.cells[0,i]:=inttostr(d.nomer);
+       tabl.cells[1,i]:=d.name;
+       tabl.cells[2,i]:=inttostr(d.kolvo);
+       k:=3;
+         while not(eof(t)) do
+           begin
+            readLn(t,m);
+            s:='';
+            j:=1;
+            k:=k+1;
+            if length(m)>0 then
+            while m[j]<>' ' do
+              begin
+                s:=s+m[j];
+                j:=j+1;
+              end;
+           tabl.cells[k,i]:=s
+           end;
+       RadioGroup1.items.add(inttostr(d.nomer));
+       RadioGroup1.itemIndex:=0;
+       closefile(t);
+     end;
+
+
+  end;
+
+ closefile(f);
+end;
+
+procedure TForm1.LowSizeTableButClick(Sender: TObject);
+begin
+  tabl.Height:=round(tabl.height*0.95);
+  tabl.Width:=round(tabl.Width*0.90);
+end;
+
+procedure TForm1.MoreSizeTablButClick(Sender: TObject);
+begin
+  tabl.Height:=round(tabl.height*1.05);
+  tabl.Width:=round(tabl.Width*1.10);
+end;
+
+procedure TForm1.ProgressBar2ContextPopup(Sender: TObject; MousePos: TPoint;
+  var Handled: Boolean);
+begin
+
+end;
+
+procedure TForm1.FindButClick(Sender: TObject);
+var
+  i,j,k,z,r,h:integer;
+  d:dat;
+  flag:boolean;
+  s,m,u,q:string;
+  a:array[1..10000] of string;
+  searchResult : TSearchRec;
+  flagNotEmptyText:boolean;
+  buf:string;
+  flagLogTag:boolean;
+begin
+  x:=RadioGroup1.itemIndex+1;
+  FindBut.visible:=true;
+  for i:=0 to (tabl.colcount-1) do
+    begin
+      tabl.Cells[i,1]:=tabl.cells[i,x];
+    end;
+  for i:=0 to (tabl.colcount-1) do
+    for j:=2 to (tabl.rowcount-1) do
+      tabl.cells[i,j]:='';
+  tabl.rowcount:=2;
+  assignfile(f, utf8toSys('base.dat'));
+  reset(f);
+  seek(f,x);
+  read(f,d);
+  assignfile(t, utf8toSys((d.name+'.txt')) );
+  reset(t);
+  i:=0;
+  z:=0;
+  while not(eof(t)) do
+    begin
+    i:=i+1;
+    readln(t,s);
+    m:='';
+    j:=2;
+    if s[1]='p' then
+    begin
+    while ((s[j]>='0') and (s[j]<='9')) do
+      j:=j+1;
+    for k:=j to length(s) do
+      m:=m+s[k];
+    flag:=True;
+    for k:=1 to d.kolvo do
+      if (m=a[k]) then
+        flag:=false;
+    if flag then
+      begin
+        z:=z+1;
+        a[z]:=m;
+        //showmessage(m);
+      end;
+    end;
+    //d.katalog_mat;
+    flag:=true;
+    //showmessage(d.katalog_mat+'\!*');
+    if FindFirst(utf8toSys(d.katalog_mat+'\!*'), faDirectory, searchResult) = 0 then
+  begin
+    repeat
+      //showmessage(searchResult.Name);
+     // tabl.rowcount:=tabl.rowcount+1;
+     // tabl.cells[0,(tabl.rowcount-1)]:=inttostr(tabl.rowcount-2);
+      s:=searchResult.Name;
+     // showmessage(s);
+      m:='';
+      for j:=2 to length(s) do
+        m:=m+s[j];
+     // showmessage(m);
+      flag:=true;
+      for j:=2 to (tabl.rowcount-1) do
+        begin
+          if tabl.cells[1,j]=m then
+            begin
+            flag:=false;
+            //showmessage('False');
+            end;
+        end;
+      if flag then
+        begin
+          tabl.rowcount:=tabl.rowcount+1;
+        tabl.cells[1,(tabl.rowcount-1)]:=m;
+        tabl.cells[0,(tabl.rowcount-1)]:=inttostr(tabl.rowcount-2);
+        end
+      else
+      FindClose(searchResult);
+    until (FindNext(searchResult)<>0) ;
+
+     end;
+     end;
+  closefile(t);
+  if CheckBox2.checked then        //поверка
+      begin
+        q:=d.katalog_mat+'\PhotoPover\';
+
+        for i:=2 to (tabl.rowcount-1) do
+          begin
+          u:=d.katalog_mat+'\!'+tabl.cells[1,i]+'\';
+          // showmessage(u);
+            assignfile(t, utf8toSys(u+'pover.txt'));
+            reset(t);
+            m:='';
+            while not(eof(t)) do
+              begin
+                readln(t,s);
+               // showmessage(s);
+                //showmessage(s);
+                m:='';
+                flagLogTag:=false;
+                if (length(s)=10) and ((s[10]>='0') and (s[10]<='9')) then
+                begin
+                  h:=strtoint(s[7]+s[8]+s[9]+s[10]);
+                  flagLogTag:=true;
+                end
+                else
+                if (length(s)=10) then
+                  h:=strtoint(s[6]+s[7]+s[8]+s[9])
+                else
+                  begin
+                    for j:=(length(s)-1) downto 0 do
+                      m:=m+s[length(s)-j];
+                    h:=strtoint(m);
+                  end;
+
+                  if not(flagLogTag) then
+                  begin
+                    h:=h+1;
+                  end;
+                  s:=inttostr(h);
+                 // showmessage(s);
+                  case length(s) of
+                    1:
+                      begin
+                      m:='0'+'0'+'0'+s;
+                      end;
+                    2:
+                      begin
+                      m:='0'+'0'+s;
+                      end;
+
+                    3:
+                      begin
+                      m:='0'+s;
+                      end;
+
+                    4:
+                      begin
+                        m:=s;
+                      end;
+                    end;
+                 // showmessage(m);
+                  if FindFirst((q+'*'+m+'*'), faanyfile, searchResult) = 0 then
+                    CopyFile(q+searchResult.name, u+'Pril4povercadoc\'+searchResult.name)
+
+
+              end;
+            closefile(t);
+          end;
+      end;
+  s:='';
+  h:=0;
+  m:='';
+  u:='';
+  for i:=2 to (tabl.rowcount-1) do       //заполнение таблицы
+    begin
+      s:=d.katalog_mat+'\!'+tabl.cells[1,i]+'\';
+      for j:=4 to (tabl.colcount-2) do
+        begin
+          m:=tabl.Cells[j,1];
+         // showmessage('');
+          if length(m)>0 then
+          case m[1] of
+            't':begin
+                  if fileexists(utf8toSys(s+'t_'+d.name+'.txt')) then
+                  begin
+                    assignfile(t,utf8toSys(s+'t_'+d.name+'.txt'));
+                  reset(t);
+                  while not(eof(t)) do
+                    begin
+                    readLn(t,m);
+                    flagNotEmptyText:=false;
+                    if (length(m)>1) then
+                    if (m[1]='t') then
+                      begin
+                      u:=m;
+                      m:='';
+                      r:=1;
+                      readln(t,buf);
+                      readln(t,buf);
+                      if length(buf)>1 then
+                        flagNotEmptyText:=True
+                      else
+                        begin
+
+                        end;
+                      while (u[r]<>' ') do
+                        begin
+                          m:=m+u[r];
+                          r:=r+1;
+                        end;
+                      for k:=4 to (tabl.colcount-1) do
+                        if ( (m=tabl.cells[k,1]) and flagNotEmptyText) then
+                          tabl.cells[k,i]:='+'
+
+                      end;
+                    end;
+                   end
+                end;
+            'p':begin
+
+                for r:=1 to z do
+                  begin
+                  k:=0;
+                  h:=4;
+                //showmessage();
+                if FindFirst(utf8toSys(s+a[r]+'\*.jpg'), faanyfile, searchResult) = 0 then
+                  begin
+                 repeat
+                  //showmessage(s+a[r]+'\'+searchResult.name);
+                 while ( (pos(a[r],tabl.cells[h,1])=0) or (tabl.cells[h,1][1]='t') ) do
+                   h:=h+1;
+                 tabl.cells[(h),i]:=inttostr(k+1);
+                 k:=k+1;
+                 until (FindNext(searchResult)<>0) ;
+                end;
+                findclose(searchResult);
+                if FindFirst(utf8toSys(s+a[r]+'\*.jpeg'), faanyfile, searchResult) = 0 then
+                  begin
+                 repeat
+                  //showmessage(s+a[r]+'\'+searchResult.name);
+                 while ( (pos(a[r],tabl.cells[h,1])=0) or (tabl.cells[h,1][1]='t') ) do
+                   h:=h+1;
+                 tabl.cells[(h),i]:=inttostr(k+1);
+                 k:=k+1;
+                 until (FindNext(searchResult)<>0) ;
+                end;
+                findclose(searchResult);
+                if FindFirst(utf8toSys(s+a[r]+'\*.png'), faanyfile, searchResult) = 0 then
+                  begin
+                 repeat
+                  //showmessage(s+a[r]+'\'+searchResult.name);
+                 while ( (pos(a[r],tabl.cells[h,1])=0) or (tabl.cells[h,1][1]='t') ) do
+                   h:=h+1;
+                 tabl.cells[(h),i]:=inttostr(k+1);
+                 k:=k+1;
+                 until (FindNext(searchResult)<>0) ;
+                end;
+                findclose(searchResult);
+                end;
+            end;
+            'c':begin
+
+                   TableInfoEx.ReadInfo(m);
+                   m:='Excel';
+                  if FindFirst(utf8toSys(m+'*.xlsx'), faanyfile, searchResult) = 0 then
+                  begin
+                  tabl.Cells[j,i]:='+';
+                    TableInfoEx.ReadInfo(m);
+                  //  Table.CopyTable();
+                  end;
+                end;
+
+          end;
+      //for j:=1 to z do
+    end;
+
+
+end;
+  closefile(f);
+  StartBut.visible:=True;
+end;
+
+procedure TForm1.StartButClick(Sender: TObject);
+var
+  i,j,k,z,r,h,setik,setik1,setkol,g,v,v0,e,setkol1:integer;
+  d:dat;
+  flag:boolean;
+  buf:real;
+  s,m,u,q,y:string;
+  ebuf:string;
+  a:array[1..10000] of string;
+  searchResult : TSearchRec;
+  w,sh,OlTable:olevariant;
+  i_head,headcount:integer;
+begin
+  Showmessage('Выбере путь до папки, куда сохранить документы');
+  if SelectDirectoryDialog2.Execute then
+  begin
+    x:=RadioGroup1.ItemIndex+1;
+    assignfile(f,utf8toSys('base.dat'));
+    reset(f);
+    seek(f,x);
+    read(f,d);
+    setkol:=0;
+    for v0:=4 to (tabl.ColCount-2) do
+      begin
+        y:=tabl.cells[v0,1];
+        if length(y)>0 then
+        if y[1]='p' then
+         for v:=2 to (tabl.rowcount-1) do
+         begin
+           if tabl.cells[v0,v]<>'' then
+           setkol:=setkol+strtoint(tabl.cells[v0,v]);
+         end;
+      end;
+    y:='';
+   // d.kolvoper:=d.kolvoper-setkol;
+    setkol:=6*setkol+(d.kolvoPer*(tabl.rowcount-2)-setkol);
+    assignfile(t, utf8toSys(d.name+'.txt'));
+    reset(t);
+    //showmessage(d.name+'.txt');
+    z:=0;
+    while not(eof(t)) do        //Выписали папки для картинок
+    begin
+    readln(t,s);
+    m:='';
+    j:=2;
+    if length(s)>0 then
+    if s[1]='p' then
+    begin
+    while ((s[j]>='0') and (s[j]<='9')) do
+      j:=j+1;
+    for k:=j to length(s) do
+      m:=m+s[k];
+    flag:=True;
+    for k:=1 to d.kolvo do
+      if (m=a[k]) then
+        flag:=false;
+    if flag then
+      begin
+        z:=z+1;
+        a[z]:=m;
+        //showmessage(m);
+      end;
+    end;
+  end;
+
+    closefile(f);
+    v:=0;
+    setik:=0;
+    setik1:=0;
+   // showmessage(inttostr(setkol));
+   // showmessage(inttostr(d.kolvoper));
+    //showmessage(inttostr(v0));
+    setkol1:=0;
+    w:=createoleobject('Word.Application');
+    for i:=2 to (tabl.rowcount-1) do
+      begin
+       for v0:=4 to (tabl.ColCount-2) do
+      begin
+        y:=tabl.cells[v0,1];
+        if length(y)>0 then
+        if y[1]='p' then
+         begin
+         if  tabl.cells[v0,i]<>'' then
+           setkol1:=setkol1+strtoint(tabl.cells[v0,i]);
+           //showmessage(tabl.cells[v0,i]);
+         end;
+      end;
+       // showmessage('Vse');
+        setkol1:=6*setkol1+(d.kolvoPer-setkol1);
+        //showmessage(inttostr(setkol));
+       // showmessage(inttostr(setkol1));
+        //  showmessage(inttostr(v0));
+        W.Documents.Open(WideString(d.sabl), false);
+        NomReport:=NomReport+1;
+        w.selection.find.forward:=true;
+        s:=d.katalog_mat+'\!'+tabl.cells[1,i]+'\';
+        assignfile(t,utf8toSys(s+'t_'+d.name+'.txt'));
+        reset(t);
+        if CheckBox1.checked then
+        w.visible:=true;
+        s:=d.katalog_mat+'\!'+tabl.cells[1,i]+'\';
+        for j:=4 to (tabl.colcount-2) do
+        begin
+          //showmessage(inttostr(j));
+          m:=tabl.Cells[j,1];
+         // showmessage('');
+          if length(m)>0 then
+          case m[1] of
+            't':begin
+                  while not(eof(t)) do
+                    begin
+                    ebuf:=m;
+                    readLn(t,m);
+                    if (length(m)>1) then
+                    if (m[1]='t') then
+                      begin
+                      u:=m;
+                      m:='';
+                      r:=1;
+                      while (u[r]<>' ') do
+                        begin
+                          m:=m+u[r];
+                          r:=r+1;
+                        end;
+                      u:=m;
+                      {for k:=4 to (tabl.colcount-1) do
+                        if (m=tabl.cells[k,1])then
+                          tabl.cells[k,i]:='+'; }
+                      readln(t,m);
+                      if (length(m)>0) then
+                        if m[1]='{' then
+                          begin
+                            readLn(t,m);
+                            //showmessage(m);
+                           // showmessage(u);
+                            //w.activedocument.range(1,2);
+                            //showmessage(w.ActiveDocument.Sections.Item(1).Headers.Range.Text);
+                            if (pos('NOMER',ebuf)<>0) then
+                            begin
+                              //w.ActiveWindow.ActivePane.View.SeekView := 9;
+                              headcount:=w.ActiveDocument.Sections.count;
+                              for i_head:=1 to headcount do
+                              begin
+                             // w.Selection.TypeText(widestring('0000000'));
+                              //w.ActiveDocument.Tables(1).Cell(2,2).Range.Text:=widestring('Гос. Номер: '+m);
+                              OlTable := w.ActiveDocument.Sections.Item(i_head).Headers.Item(1).Range;
+                              //showmessage('');
+                              ebuf:=OlTable.Tables.Item(1).Cell(3,2).Range.text;
+                              ebuf:=ObrNomer(ebuf,m);
+                             // showmessage(ebuf);
+                              if  ebuf<>'' then
+                              OlTable.Tables.Item(1).Cell(3,2).Range.text:=widestring(ebuf);
+                              OlTable.Tables.Item(1).Cell(2,3).Range.text:='CA-'+IntToStr(NomReport);
+                              //showmessage('');
+                              //w.Selection.TypeText(widestring(m));
+                             // showmessage(m);
+                             // w.ActiveWindow.ActivePane.View.SeekView := 0;
+                             end
+                            end;
+                            w.selection.find.forward:=true;
+                            w.selection.find.text:=widestring(u);
+                            //showmessage(w.selection.find.text);
+                            while w.selection.find.execute do
+                            begin
+                              //showmessage(u);
+                              g:=w.selection.start;
+                              if DelSledBox.checked then
+                                w.activedocument.range(g-2,(g+1+length(u))).text:=widestring(m)
+                              else
+                                w.activedocument.range(g,(g+1+length(u))).text:=widestring(m);
+                                setik:=setik+1;
+                                setik1:=setik1+1;
+                                //showmessage(setik);
+                                ProgressBar1.position:=Round(100*(setik/setkol));
+                                ProgressBar2.position:=Round(100*(setik1/setkol1));
+                            end;
+
+                            w.selection.find.forward:=false;
+                            while w.selection.find.execute do
+                            begin
+                              //showmessage(u);
+                              g:=w.selection.start;
+                              if DelSledBox.checked then
+                                w.activedocument.range(g-2,(g+1+length(u))).text:=widestring(m)
+                              else
+                                w.activedocument.range(g,(g+1+length(u))).text:=widestring(m);
+                                //  w.activedocument.range(g,(g+length(u))).text:=widestring(m);
+                              setik:=setik+1;
+                              setik1:=setik1+1;
+                              ProgressBar1.position:=Round(100*(setik/setkol));
+                              ProgressBar2.position:=Round(100*(setik1/setkol1));
+                            end;
+
+                      end;
+                    end;
+                    end;
+                  end;
+            'p':begin
+                r:=1;
+                while (pos(a[r], tabl.cells[j,1])=0) do
+                  r:=r+1;
+                //showmessage(a[r]);
+                w.selection.find.forward:=True;
+                w.selection.find.text:=widestring(tabl.cells[j,1]);
+               // showmessage(tabl.cells[j,1]);
+                if w.selection.find.execute then
+                   begin
+                   g:=w.selection.start;
+                     for h:=1 to 5 do
+                       case h of
+                         1: if paste_picture(s,a[r],'\*.jpg',g,w,v,tabl.cells[j,1]) then
+                              begin
+                                setik:=setik+5;
+                                setik1:=setik1+5;
+                                ProgressBar1.position:=Round(100*(setik/setkol));
+                                ProgressBar2.position:=Round(100*(setik1/setkol1));
+                              end;
+                         2: if paste_picture(s,a[r],'\*.jpeg',g,w,v,tabl.cells[j,1]) then
+                              begin
+                                setik:=setik+5;
+                                setik1:=setik1+5;
+                                ProgressBar1.position:=Round(100*(setik/setkol));
+                                ProgressBar2.position:=Round(100*(setik1/setkol1));
+                              end;
+                         3: if paste_picture(s,a[r],'\*.png',g,w,v,tabl.cells[j,1]) then
+                              begin
+                                setik:=setik+5;
+                                setik1:=setik1+5;
+                                ProgressBar1.position:=Round(100*(setik/setkol));
+                                ProgressBar2.position:=Round(100*(setik1/setkol1));
+                              end;
+                       end;
+                     if DelSledBox.checked then
+                       w.activedocument.range(g-2,(g+1+length(tabl.cells[j,1]))).text:=''
+                     else
+                       w.activedocument.range(g,(g+1+length(tabl.cells[j,1]))).text:=''
+                  end
+                else
+                  begin
+                    w.selection.find.forward:=false;
+                    w.selection.find.text:=widestring(tabl.cells[j,1]);
+                    if w.selection.find.execute then
+                    begin
+                     g:=w.selection.start;
+                     for h:=1 to 5 do
+                       case h of
+                         1: if paste_picture(s,a[r],'\*.jpg',g,w,v,tabl.cells[j,1]) then
+                              begin
+                                setik:=setik+5;
+                                setik1:=setik1+5;
+                                ProgressBar1.position:=Round(100*(setik/setkol));
+                                ProgressBar2.position:=Round(100*(setik1/setkol1));
+                              end;
+                         2: if paste_picture(s,a[r],'\*.jpeg',g,w,v,tabl.cells[j,1]) then
+                              begin
+                                setik:=setik+5;
+                                setik1:=setik1+5;
+                                ProgressBar1.position:=Round(100*(setik/setkol));
+                                ProgressBar2.position:=Round(100*(setik1/setkol1));
+                              end;
+                         3: if paste_picture(s,a[r],'\*.png',g,w,v,tabl.cells[j,1]) then
+                              begin
+                                setik:=setik+5;
+                                setik1:=setik1+5;
+                                ProgressBar1.position:=Round(100*(setik/setkol));
+                                ProgressBar2.position:=Round(100*(setik1/setkol1));
+                              end;
+                       end;
+                     if DelSledBox.checked then
+                       w.activedocument.range(g-2,(g+3+length(tabl.cells[j,1]))).text:=''
+                     else
+                       w.activedocument.range(g,(g+3+length(tabl.cells[j,1]))).text:=''
+                    end;
+                  end
+            end;
+            'c':begin
+                  s:=s+'Excel';
+                  if FindFirst(utf8toSys(s+'*.xlsx'), faanyfile, searchResult) = 0 then
+                  begin
+                    TableInfoEx.ReadInfo(m);
+                   // Table.CopyTable(e,
+                  end;
+                end;
+          end;
+      //for j:=1 to z do
+    end;
+      q:=SelectDirectoryDialog2.filename+'\'+d.name+'_'+tabl.Cells[1,i];
+   //   showmessage(inttostr(setik));
+      w.ActiveDocument.SaveAs2(widestring(q));
+      w.ActiveDocument.ExportAsFixedFormat(widestring(q),17);
+      w.activedocument.close;
+      ProgressBar2.position:=0;
+      setik1:=0;
+      v:=0;
+      closefile(t);
+      end;
+//    closefile(t);
+//    closefile(f);
+    w.quit;
+    w:=UnAssigned;
+  end;
+  ProgressBar1.position:=0;
+  ProgressBar2.position:=0;
+end;
+
+procedure TForm1.Button3Click(Sender: TObject);
+var e,w:olevariant;
+  m,q:string;
+  n:integer;
+  i:integer;
+  t:table;
+  d:diag;
+begin
+  w:=createoleobject('Word.Application');
+  W.Documents.Open(WideString('D:\YandexDisk\Work\Программы\Автоматизация отчетов\Gazel.docx'), false);
+
+  {w.selection.find.forward:=true;
+  w.selection.find.text:='!#t1GOSNOMER#';
+  n:=0;
+  if w.selection.find.execute do
+                                  begin
+                                  i:=w.selection.start;
+                                  w.ActiveDocument.Shapes.AddPicture('D:\YandexDisk\ValMas\!666\car\p1car769616.jpg', false,true,w.Selection.Range);
+                                  w.activedocument.range(i,i+5).text:='';
+                                 // w.selection.text:='666';
+                                  //showmessage(w.selection.text);
+                                   //showmessage(m);
+                                  n:=n+1;
+                                  end;
+
+
+  q:='D:\YandexDisk\Otseti\sabl666.docx';
+  w.visible:=true;
+  //showmessage('Фсё! '+inttostr(n));
+
+  //w.ChangeFileOpenDirectory('D:\YandexDisk\Otseti\');
+    //w.ActiveDocument.SaveAs2(WideString('D:\YandexDisk\Otseti\sabl_666.docx'), 12, False, '', True, '', False, False, False, False, False, 15);
+  w.ActiveDocument.SaveAs2(widestring(q)); }
+
+
+  //showmessage('Фсё! '+inttostr(n));
+  w.visible:=true;
+  e:=createoleobject('Excel.Application');
+  e.WorkBooks.Open(WideString('D:\YandexDisk\Work\Программы\Автоматизация отчетов\test.xlsx'));
+  e.visible:=True;
+  t:=Table.create;
+  d:=diag.create;
+
+  t.CopyTable(e,1,false);
+  w.selection.find.forward:=true;
+  w.selection.find.text:='!#t1GOSNOMER#';
+  n:=0;
+  if w.selection.find.execute then
+                                  begin
+                                  i:=w.selection.start;
+                                  w.activedocument.range(i,i+length('!#t1GOSNOMER#')).text:='';
+                                  w.selection.paste;
+                                  n:=n+1;
+                                  end;
+  showmessage('');
+  t.CopyTable(e,1,true);
+  n:=0;
+  if w.selection.find.execute then
+                                  begin
+                                  i:=w.selection.start;
+                                  w.activedocument.range(i,i+length('!#t1GOSNOMER#')).text:='';
+                                  w.selection.paste;
+                                 // w.selection.text:='666';
+                                  //showmessage(w.selection.text);
+                                   //showmessage(m);
+                                  n:=n+1;
+                                  end;
+  showmessage('');
+  d.CopyDiag(e,1,false);
+  if w.selection.find.execute then
+                                  begin
+                                  i:=w.selection.start;
+                                  w.activedocument.range(i,i+length('!#t1GOSNOMER#')).text:='';
+                                  w.selection.paste;
+                                 // w.selection.text:='666';
+                                  //showmessage(w.selection.text);
+                                   //showmessage(m);
+                                  n:=n+1;
+                                  end;
+end;
+
+procedure TForm1.Button4Click(Sender: TObject);
+var d:dat;
+  name_of_papka:string;
+  name_of_podpapka:string;
+  i,j:integer;
+  searchResult : TSearchRec;
+begin
+  assignfile(f,utf8toSys('base.dat'));
+  reset(f);
+  seek(f,1);
+  read(f,d);
+  assignfile(t,d.katalog_mat+'\Сгенерировать папки.txt');
+  reset(t);
+  while not(eof(t)) do
+    begin
+      readln(t,name_of_papka);
+    //  showmessage(d.katalog_mat+'\Шаблон');
+     // showmessage(d.katalog_mat+'\!'+name_of_papka);
+      if copyDirTree((d.katalog_mat+'\Шаблон'),(d.katalog_mat+'\!'+name_of_papka)) then
+        begin
+          if FindFirst(d.katalog_mat+'\Шаблон\??*', faDirectory, searchResult) = 0 then
+            begin
+              repeat
+                if ((pos('.txt',searchResult.name)=0) and (length(searchResult.name)>1) and (pos('..',searchResult.name)=0)) then
+                  begin
+                  name_of_podpapka:='';
+                  for i:=1 to length(searchResult.name) do
+                    begin
+                      name_of_podpapka:=name_of_podpapka+searchResult.name[i];
+                      if searchResult.name[i]='\' then
+                        name_of_podpapka:='';
+                    end;
+                //  showmessage(d.katalog_mat+'\Шаблон'+'\'+searchResult.name);
+                 // showmessage(d.katalog_mat+'\'+name_of_papka+'\'+name_of_podpapka);
+                 if createDir(d.katalog_mat+'\!'+name_of_papka+'\'+name_of_podpapka) then
+                 else
+                    showmessage('Ошибка создания подпапки — ' +name_of_podpapka);
+                 end
+              until FindNext(searchResult) <> 0;
+              FindClose(searchResult);
+            end
+          else
+            showmessage('Ошибка поиска подпапок');
+         end
+      else
+       showmessage('Ошибка при создании папки — ' +name_of_papka);
+    end;
+  showmessage('Ok!');
+  closefile(t);
+  closefile(f);
+end;
+
+procedure TForm1.PytMatClick(Sender: TObject);
+begin
+
+end;
+
+procedure TForm1.ViborSablClick(Sender: TObject);
+begin
+
+end;
+
+procedure TForm1.NewSablonClick(Sender: TObject);
+var s,m:string;
+  d:dat;
+  w,myrange:olevariant;
+  i,j,n,n0,k:integer;
+  a:array[1..10000] of string;
+  b:boolean;
+  textfile_of_sabl:textfile;
+  flag_of_fail_sabl:boolean;
+  logfile:textfile;
+begin
+  OpenDialog1.filter:='Word files|*.docx;*.doc';
+  if OpenDialog1.Execute then
+    begin
+    OpenDialog1.filter:='';
+    assignfile(f, utf8toSys('base.dat'));
+    reset(f);
+    if filesize(f)=0 then
+      begin                 //есил файл с шаблонаи пуст, то номер шаблона первый
+      write(f,d);
+      d.nomer:=1;
+      end
+    else
+      begin         //если другие шалоны есть, то для нового шабла номер назначается на оджин больше, чемя для последнего
+      seek(f,(filesize(f)-1));
+      read(f,d);
+      d.nomer:=d.nomer+1;
+      d.name:='';                            //далее очищается буферная переменная
+      d.katalog_info:='';
+      d.katalog_mat:='';
+      d.sabl:='';
+      d.kolvo:=0;
+      end;
+      d.sabl:=SysToUtf8(OpenDialog1.filename);     //записали путь до шаблона
+      s:=d.sabl;
+
+      j:=1;
+    //  showmessage(d.sabl);
+      while (s[j] <>'.') do             //в цикле читаем строчку до точки, чтобы записать название файла;
+        begin
+        d.name:=d.name+s[j];
+        if s[j]='\' then
+          d.name:='';
+        j:=j+1;
+        end;
+      //showmessage(d.name);
+        assignfile(t,utf8toSys((d.name+'.txt')));
+        rewrite(t);
+        w:=createoleobject('Word.Application');
+        W.Documents.Open(WideString(OpenDialog1.filename), false);
+        if checkbox1.checked then
+        w.visible:=true
+        else
+        w.visible:=false;
+       // w.ActiveDocument.Shapes.AddPicture('D:\YandexDisk\ValMas\p1car769616.jpg', false,true,w.Selection.Range);
+       i:=1;
+       j:=0;
+     //  s:='!#';
+      w.selection.find.forward:=true;
+      w.selection.find.text:='!#';
+      n:=0;
+      n0:=0;
+      while w.selection.find.execute do
+        begin
+        i:=w.selection.start;
+        i:=i+2;
+        s:=w.activedocument.Range(i,i+65).text;
+       // showmessage(s);
+        j:=1;
+        m:=s;
+        s:='';
+        while ((m[j]<>'#') and not((m[j]=#13) or (m[j]=#10) or (m[j]=' '))) do
+          begin
+            s:=s+m[j];
+            j:=j+1;
+          end;
+        if length(s)<1 then
+           showmessage(m)
+        else
+            if s[1]='T' then
+             s[1]:='t';
+        n:=n+1;
+        b:=true;
+        for k:=1 to n do
+          if (s=a[k]) then
+            b:=false;
+        if b then
+          begin
+        //showmessage(ansistring(s));
+        //showmessage(utf8string(s));
+
+        //writeln(t,(' ' + inttostr(i)));
+
+        writeln(t,utf8string(s));
+        a[n]:=s;
+        n0:=n0+1;
+          end;
+        end;
+      flag_of_fail_sabl:=false;
+      for k:=1 to n do
+      begin
+        for j:=(k+1) to n do
+        begin
+          if ((pos(a[k],a[j])<>0) and (k<>j)) then
+          begin
+            if not(flag_of_fail_sabl) then
+              begin
+                flag_of_fail_sabl:=true;
+                assignfile(logfile,'log.txt');
+                rewrite(logfile);
+              end;
+            writeln(logfile,'Ключевое слово '+a[k]+' входит в ' +a[j]);
+          end;
+         // if length(a[k] = 0
+          if pos(a[j],a[k])<>0 then
+          begin
+            if not(flag_of_fail_sabl) then
+              begin
+                flag_of_fail_sabl:=true;
+                assignfile(logfile,'log.txt');
+                rewrite(logfile);
+              end;
+            writeln(logfile,'Ключевое слово '+a[j]+' входит в '+ a[k]);
+          end;
+       end;
+      if ((length(a[k])>=40) or (pos('.',a[k])<>0) or (pos(',',a[k])<>0))then
+        begin
+          if not(flag_of_fail_sabl) then
+              begin
+                flag_of_fail_sabl:=true;
+                assignfile(logfile,'log.txt');
+                rewrite(logfile);
+              end;
+          writeLn(logfile, 'Ошибка  ключевого слова — <<' +a[k]+ '>>. Возможно вы забыли поставить второй #. Либо ключевое слово слишком длинное.')
+        end;
+      if length(a[k])>0 then
+      if a[k][1]='p' then
+        begin
+          s:='';
+          j:=2;
+          while (a[k][j]>='0') and (a[k][j]<='9') do
+            j:=j+1;
+          for i:=j to length(a[k]) do
+            s:=s+a[k][i];
+          for i:=1 to n do
+            if ((i<>k) and (pos(s,a[i])<>0)) then
+            begin
+              if not(flag_of_fail_sabl) then
+              begin
+                flag_of_fail_sabl:=true;
+                assignfile(logfile,'log.txt');
+                rewrite(logfile);
+              end;
+             writeln(logfile,'Ключевое слово '+a[k]+' входит в '+ a[i]);
+            end;
+       end;
+        end;
+      end;
+      if flag_of_fail_sabl then
+        begin
+          showmessage('Ошибка при создании шаблона. Подробности в log.txt');
+          closefile(f);
+//          closefile(textfile_of_sabl);
+          closefile(t);
+          closefile(logfile);
+          erase(f);
+//          erase(textfile_of_sabl);
+        //  erase(t);
+        end
+      else
+        begin
+      Showmessage('Выбере путь до папки с материалами');
+      if SelectDirectoryDialog1.Execute then
+        d.katalog_mat:=SysToUtf8(SelectDirectoryDialog1.FileName);
+     // showmessage(d.katalog_mat);
+
+      closefile(t);
+      reset(t);
+      if createdir(d.katalog_mat+'\Шаблон') then
+        begin
+          //reset(t);
+          assignfile(textfile_of_sabl,d.katalog_mat+'\Шаблон\t_'+d.name+'.txt');
+          rewrite(textfile_of_sabl);
+          while not(eof(t)) do
+            begin
+              readLn(t,s);
+             // showmessage(s);
+              if length(s)<=0 then
+                 showmessage('Ошибка. Нулевая длина ключевого слова')
+              else
+              case s[1] of
+                't':
+                  begin
+                    writeln(textfile_of_sabl,(s+'  //'));
+                    writeln(textfile_of_sabl,'{');
+                    writeln(textfile_of_sabl,'');
+                    writeln(textfile_of_sabl,'}');
+                  end;
+                'T': begin
+                    writeln(textfile_of_sabl,(s+'  //'));
+                    writeln(textfile_of_sabl,'{');
+                    writeln(textfile_of_sabl,'');
+                    writeln(textfile_of_sabl,'}');
+                  end;
+                'p':
+                  begin
+                    i:=2;
+                    while ((s[i]<='9') and (s[i]>='0')) do
+                      i:=i+1;
+                    m:='';
+                    for j:=i to length(s) do
+                      m:=m+s[j];
+
+                    if createdir(d.katalog_mat+'\Шаблон\'+m) then
+
+                    else
+                      showmessage('Ошибка при создании папки с картинками — ' + m);
+                  end;
+                'c': createdir(d.katalog_mat+'\Шаблон\'+'Excel')
+                else
+                  showmessage('Ошибка case при создании шаблона');;
+              end;
+
+            end;
+        end
+      else
+        showmessage('Ошибка при создании папки-шаблона!');
+      closefile(textfile_of_sabl);
+      closefile(t);
+
+      //showmessage(inttostr(d.nomer));
+      d.kolvo:=n0;
+      d.kolvoper:=n;
+      write(f,d);
+      closefile(f);
+      showmessage('Ok');
+        end;
+
+    w.Application.documents.close;
+    w.quit;
+    w:=UnAssigned;
+  //  showmessage('Ok');
+end;
+
+procedure TForm1.ZavodSbrosClick(Sender: TObject);
+  var d:dat;
+begin
+ assignfile(f, 'base.dat');
+ rewrite(f);
+ closefile(f);
+end;
+
+end.
